@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { SectionTitle } from './SectionTitle';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -16,6 +16,7 @@ const GALLERY_IMAGES = [
 
 export const Gallery: React.FC = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const startXRef = useRef<number | null>(null);
 
   const nextSlide = () => {
     setCurrentIndex((prev) => (prev + 1) % GALLERY_IMAGES.length);
@@ -39,6 +40,23 @@ export const Gallery: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentIndex]);
 
+  // Обработка свайпа/drag
+  const handlePointerDown = (x: number) => {
+    startXRef.current = x;
+  };
+
+  const handlePointerUp = (x: number) => {
+    if (startXRef.current === null) return;
+    const delta = x - startXRef.current;
+    startXRef.current = null;
+
+    if (delta > 50) {
+      prevSlide();
+    } else if (delta < -50) {
+      nextSlide();
+    }
+  };
+
   // Получаем текущее изображение
   const currentImage = GALLERY_IMAGES[currentIndex];
 
@@ -52,7 +70,13 @@ export const Gallery: React.FC = () => {
       <div className="container mx-auto px-4">
         <SectionTitle title="Видения Битв" subtitle="Осколки Памяти" />
 
-        <div className="relative max-w-4xl mx-auto">
+        <div
+          className="relative max-w-4xl mx-auto"
+          onTouchStart={(e) => handlePointerDown(e.touches[0].clientX)}
+          onTouchEnd={(e) => handlePointerUp(e.changedTouches[0].clientX)}
+          onMouseDown={(e) => handlePointerDown(e.clientX)}
+          onMouseUp={(e) => handlePointerUp(e.clientX)}
+        >
           {/* Ornamental Frame */}
           <div className="relative p-1 md:p-2 bg-iron-800 shadow-xl rounded-sm transition-all duration-700 hover:shadow-[0_15px_40px_-8px_rgba(127,29,29,0.3)] hover:scale-[1.005] group">
             <div className="absolute inset-0 border border-gold-600/20 m-1 pointer-events-none z-30"></div>
@@ -62,8 +86,10 @@ export const Gallery: React.FC = () => {
               {GALLERY_IMAGES.map((image, index) => (
                 <div
                   key={`img-${image.id}`}
-                  className={`absolute inset-0 w-full h-full transition-opacity duration-700 ease-in-out ${
-                    index === currentIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'
+                  className={`absolute inset-0 w-full h-full transition-all duration-[1200ms] ease-[cubic-bezier(0.4,0.0,0.2,1)] ${
+                    index === currentIndex
+                      ? 'opacity-100 z-10 scale-100'
+                      : 'opacity-0 z-0 scale-105'
                   }`}
                 >
                   <img 
@@ -128,6 +154,32 @@ export const Gallery: React.FC = () => {
                 aria-label={`Перейти к изображению ${idx + 1}: ${img.caption}`}
                 aria-current={idx === currentIndex ? 'true' : 'false'}
               />
+            ))}
+          </div>
+
+          {/* Миниатюры */}
+          <div className="mt-6 grid grid-cols-4 sm:grid-cols-8 gap-2">
+            {GALLERY_IMAGES.map((img, idx) => (
+              <button
+                key={`thumb-${img.id}`}
+                onClick={() => setCurrentIndex(idx)}
+                className={`relative aspect-[4/3] overflow-hidden border transition-all duration-300 ${
+                  idx === currentIndex
+                    ? 'border-blood-500 shadow-[0_0_0_2px_rgba(248,113,113,0.35)]'
+                    : 'border-iron-700 hover:border-parchment-200/70'
+                }`}
+                aria-label={`Открыть миниатюру ${idx + 1}`}
+              >
+                <img
+                  src={getImagePath(img.filename)}
+                  alt={img.caption}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                />
+                {idx === currentIndex && (
+                  <span className="absolute inset-0 bg-black/40" aria-hidden />
+                )}
+              </button>
             ))}
           </div>
 
